@@ -1,5 +1,10 @@
+mabe
 Utilities/gitversion.h
 modules.h
+makefile
+*.swp
+MultiCellReport.csv
+MC_Fates.csv
 
 # Ignore xcode project file:
 mabe.xcodeproj

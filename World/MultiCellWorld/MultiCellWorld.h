@@ -334,7 +334,8 @@ public:
 							targetY = loopMod(targetY, sizeY);
 							pickIsValid = true;
 						}
-						// else, option is "search", do nothing, pickIsValid is false, so we will pick again.
+						// else, option is "search", do nothing, 
+                            // pickIsValid is false, so we will pick again.
 					}
 					else {
 						pickIsValid = true;
@@ -348,20 +349,20 @@ public:
 					int direction = Random::getIndex(4);
 
 					if (direction == 0) {
-						targetX = parentX + Random::getInt(1, spatialWorldDist);
+						targetX = parentX + Random::getInt(1, spatialDist);
 						targetY = parentY;
 					}
 					else if (direction == 1) {
 						targetX = parentX;
-						targetY = parentY + Random::getInt(1, spatialWorldDist);
+						targetY = parentY + Random::getInt(1, spatialDist);
 					}
 					else if (direction == 2) {
-						targetX = parentX - Random::getInt(1, spatialWorldDist);
+						targetX = parentX - Random::getInt(1, spatialDist);
 						targetY = parentY;
 					}
 					else if (direction == 3) {
 						targetX = parentX;
-						targetY = parentY - Random::getInt(1, spatialWorldDist);
+						targetY = parentY - Random::getInt(1, spatialDist);
 					}
 					if (targetX < 0 || targetX >= sizeX || targetY < 0 || targetY >= sizeY) {
 						if (spatialEdgeRule == "fail") {
