@@ -1,24 +1,15 @@
 % World
-  + Berry
-  + Xor
-  * Test
-  + Logic16
-  - BlockCatch
-  - TPM
+  + MultiCell
 
 % Genome
   + Multi
   * Circular
 
 % Brain
-  - Markov
+  + Markov
   * CGP
-  - LSTM
-  + ConstantValues
-  + Human
-  - Wire
   + ANN
-  - BiLog
+  + BiLog
 
 % Optimizer
   * Simple
