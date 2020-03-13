@@ -304,10 +304,12 @@ public:
 		int sizeX = (forWorld) ? worldX : multiCellX;
 		int sizeY = (forWorld) ? worldY : multiCellY;
 
+        auto is_spatial = (forWorld) ? spatialWorld : spatialMultiCell;
 		auto spatialModel = (forWorld) ? spatialWorldModel : spatialMultiCellModel;
 		auto spatialEdgeRule = (forWorld) ? spatialWorldEdgeRule : spatialMultiCellEdgeRule;
+        auto spatialDist = (forWorld) ? spatialWorldDist : spatialMultiCellDist;
 
-		if (spatialWorld == 0) { // world is well mixed, pick random location that is not parent location
+		if (is_spatial == 0){// world is well mixed, pick random location that is not parent location
 			do { // keep picking until we get a good one!
 				targetX = Random::getIndex(sizeX);
 				targetY = Random::getIndex(sizeY);
@@ -318,8 +320,8 @@ public:
 				bool pickIsValid = false;
 				while (!pickIsValid) {
 					do { // keep picking until we get a good one!
-						targetX = parentX + Random::getInt(-1 * spatialWorldDist, spatialWorldDist);
-						targetY = parentY + Random::getInt(-1 * spatialWorldDist, spatialWorldDist);
+						targetX = parentX + Random::getInt(-1 * spatialDist, spatialDist);
+						targetY = parentY + Random::getInt(-1 * spatialDist, spatialDist);
 					} while (targetX == parentX && targetY == parentY);
 					if (targetX < 0 || targetX >= sizeX || targetY < 0 || targetY >= sizeY) {
 						if (spatialEdgeRule == "fail") {
@@ -372,7 +374,8 @@ public:
 							targetY = loopMod(targetY, sizeY);
 							pickIsValid = true;
 						}
-						// else, option is "search", do nothing, pickIsValid is false, so we will pick again.
+						// else, option is "search", do nothing, 
+                            // pickIsValid is false, so we will pick again.
 					}
 					else {
 						pickIsValid = true;

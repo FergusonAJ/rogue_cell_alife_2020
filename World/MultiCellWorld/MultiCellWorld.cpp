@@ -1,5 +1,3 @@
-
-
 #include "MultiCellWorld.h"
 
 #include "../../Utilities/bitmap_image.hpp"
