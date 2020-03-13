@@ -1,0 +1,23 @@
+% World
+  + MultiCell
+
+% Genome
+  + Multi
+  * Circular
+
+% Brain
+  + Markov
+  * CGP
+  + ANN
+  + BiLog
+
+% Optimizer
+  * Simple
+  - Islands
+  - Lexicase
+
+% Archivist
+  + Default
+  + SSwD
+  * LODwAP
+
