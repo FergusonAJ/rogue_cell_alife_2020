@@ -46,6 +46,10 @@ std::shared_ptr < ParameterLink<double>> MultiCellWorld::initEvilPercentPL =
 Parameters::register_parameter("WORLD_MULTICELL-initEvilPercent", -1.0,
 	"use this to initalize first population genomes, if -1, seed genomes randomly, 0.0 = not evil, 1.0 = very evil");
 
+std::shared_ptr < ParameterLink<int>> MultiCellWorld::restraint_type_PL =
+Parameters::register_parameter("WORLD_MULTICELL-restraint_type", 0,
+	"Which type of restraint to use (0 - fail to overwrite cells, 1 - fail to overwrite, only choose"
+        " from empty neighbors)");
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -210,7 +214,7 @@ MultiCellWorld::MultiCellWorld(std::shared_ptr<ParametersTable> PT_)
 	recordWorldStateStep = recordWorldStateStepPL->get(PT);
 
 	initEvilPercent = initEvilPercentPL->get(PT);
-
+    restraint_type = restraint_type_PL->get(PT);
 
 
 
@@ -376,7 +380,7 @@ void MultiCellWorld::evaluate(std::map<std::string, std::shared_ptr<Group>>& gro
 		for (auto worldLocation : worldOrder) {
 			int wX = worldLocation.first;
 			int wY = worldLocation.second;
-
+            //std::cout << wX << ", " << wY << std::endl;
 			if (!world(wX, wY).empty) {
 				for (auto MCLocation : multiCellOrder) {
 					int x = MCLocation.first;
@@ -470,7 +474,7 @@ void MultiCellWorld::evaluate(std::map<std::string, std::shared_ptr<Group>>& gro
 					if (!suppressMultiCellOffspring) {
 						// make a new MC at a random world location (not here)
 						int newX, newY;
-						pickGridLoc(true, wX, wY, newX, newY); // true = forWorld
+                        pickWorldLocation(wX, wY, newX, newY);
 						if (!world(newX, newY).empty) {
 
 							// we have selected an MC that is not empty, it's about this be killed!

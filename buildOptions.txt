@@ -3,13 +3,13 @@
 
 % Genome
   + Multi
-  * Circular
+  - Circular
 
 % Brain
-  + Markov
+  - Markov
   * CGP
-  + ANN
-  + BiLog
+  - ANN
+  - BiLog
 
 % Optimizer
   * Simple

@@ -52,6 +52,8 @@ public:
 	int recordImageStep;
 	static std::shared_ptr < ParameterLink<int>> recordWorldStateStepPL;
 	int recordWorldStateStep;
+	static std::shared_ptr < ParameterLink<int>> restraint_type_PL;
+	int restraint_type;
 
 
 	static std::shared_ptr < ParameterLink<bool>> spatialWorldPL;
@@ -153,6 +155,10 @@ public:
 		T& operator()(std::pair<double, double> loc) {
 			return data[getIndex((int)(loc.second), (int)(loc.first))];
 		}
+
+        T& getRaw(size_t idx){ 
+            return data[idx];
+        }
 
 		// show the contents of this Vector2d with index values, and x,y values
 		void show() {
@@ -296,97 +302,179 @@ public:
 	Vector2d<MultiCell> world;
 	std::set<std::shared_ptr<Organism>> killList;
 
-	// pick a location form world that is not parentX, parentY...
-	// place location in targetX, targetY
-	// if forWorld, select a world location, if !forWorld, select an MC location
-	void pickGridLoc(bool forWorld, int parentX, int parentY, int& targetX, int& targetY) {
 
-		int sizeX = (forWorld) ? worldX : multiCellX;
-		int sizeY = (forWorld) ? worldY : multiCellY;
-
-        auto is_spatial = (forWorld) ? spatialWorld : spatialMultiCell;
-		auto spatialModel = (forWorld) ? spatialWorldModel : spatialMultiCellModel;
-		auto spatialEdgeRule = (forWorld) ? spatialWorldEdgeRule : spatialMultiCellEdgeRule;
-        auto spatialDist = (forWorld) ? spatialWorldDist : spatialMultiCellDist;
-
-		if (is_spatial == 0){// world is well mixed, pick random location that is not parent location
-			do { // keep picking until we get a good one!
-				targetX = Random::getIndex(sizeX);
-				targetY = Random::getIndex(sizeY);
-			} while (targetX == parentX && targetY == parentY);
+    void pickWorldLocation(int parent_x, int parent_y, int& target_x, int& target_y){
+		if (spatialWorld == 0){// World is well-mixed, pick random location, just not self
+            do { // Keep picking until we get a good one!
+                target_x = Random::getIndex(worldX);
+                target_y = Random::getIndex(worldY);
+            } while (target_x == parent_x && target_y == parent_y);
 		}
-		else { // world is spatial
-			if (spatialModel == "square") {
-				bool pickIsValid = false;
-				while (!pickIsValid) {
+		else { // World is spatial
+            bool pick_is_valid = false;
+            while (!pick_is_valid) {
+                if (spatialWorldModel == "square") { // Can pick in cardinal directionss or diagonals
 					do { // keep picking until we get a good one!
-						targetX = parentX + Random::getInt(-1 * spatialDist, spatialDist);
-						targetY = parentY + Random::getInt(-1 * spatialDist, spatialDist);
-					} while (targetX == parentX && targetY == parentY);
-					if (targetX < 0 || targetX >= sizeX || targetY < 0 || targetY >= sizeY) {
-						if (spatialEdgeRule == "fail") {
-							targetX = -1;
-							targetY = -1;
-							pickIsValid = true;
-						}
-						else if (spatialEdgeRule == "wrap") {
-							targetX = loopMod(targetX, sizeX);
-							targetY = loopMod(targetY, sizeY);
-							pickIsValid = true;
-						}
-						// else, option is "search", do nothing, 
-                            // pickIsValid is false, so we will pick again.
-					}
-					else {
-						pickIsValid = true;
-					}
-				}
-			}
-			else if (spatialModel == "cardinal") {
-				bool pickIsValid = false;
-				while (!pickIsValid) {
-
-					int direction = Random::getIndex(4);
-
-					if (direction == 0) {
-						targetX = parentX + Random::getInt(1, spatialDist);
-						targetY = parentY;
-					}
-					else if (direction == 1) {
-						targetX = parentX;
-						targetY = parentY + Random::getInt(1, spatialDist);
-					}
-					else if (direction == 2) {
-						targetX = parentX - Random::getInt(1, spatialDist);
-						targetY = parentY;
-					}
-					else if (direction == 3) {
-						targetX = parentX;
-						targetY = parentY - Random::getInt(1, spatialDist);
-					}
-					if (targetX < 0 || targetX >= sizeX || targetY < 0 || targetY >= sizeY) {
-						if (spatialEdgeRule == "fail") {
-							targetX = -1;
-							targetY = -1;
-							pickIsValid = true;
-						}
-						else if (spatialEdgeRule == "wrap") {
-							targetX = loopMod(targetX, sizeX);
-							targetY = loopMod(targetY, sizeY);
-							pickIsValid = true;
-						}
-						// else, option is "search", do nothing, 
-                            // pickIsValid is false, so we will pick again.
-					}
-					else {
-						pickIsValid = true;
-					}
-				}
+						target_x = parent_x + Random::getInt(-1* spatialWorldDist, spatialWorldDist);
+						target_y = parent_y + Random::getInt(-1* spatialWorldDist, spatialWorldDist);
+					} while (target_x == parent_x && target_y == parent_y);
+                }
+                else if (spatialWorldModel == "cardinal") { // No diagonals, only cardinal dirs
+                    int direction = Random::getIndex(4);
+                    target_x = parent_x;
+                    target_y = parent_y;
+                    if (direction == 0) { // Right
+                        target_x = parent_x + Random::getInt(1, spatialWorldDist);
+                    }
+                    else if (direction == 1) { // Down
+                        target_y = parent_y + Random::getInt(1, spatialWorldDist);
+                    }
+                    else if (direction == 2) { // Left
+                        target_x = parent_x - Random::getInt(1, spatialWorldDist);
+                    }
+                    else if (direction == 3) { // Up
+                        target_y = parent_y - Random::getInt(1, spatialWorldDist);
+                    }
+                }
+                // If we landed off the grid, do what params say
+                if (target_x < 0 || target_x >= worldX || target_y < 0 || target_y >= worldY) {
+                    if (spatialWorldEdgeRule == "fail") { // Return a "failed" location
+                        target_x = -1;
+                        target_y = -1;
+                        pick_is_valid = true;
+                    }
+                    else if (spatialWorldEdgeRule == "wrap") { // Just wrap in the world
+                        target_x = loopMod(target_x, worldX);
+                        target_y = loopMod(target_y, worldY);
+                        pick_is_valid = true;
+                    }
+                    // else, option is "search", do nothing, 
+                        // pick_is_valid is false, so we will pick again.
+                }
+                else {
+                    pick_is_valid = true;
+                }
+                pick_is_valid = pick_is_valid && (target_x != parent_x || target_y != parent_y);
 			}
 		}
-		if (targetX == parentX && targetY == parentY) {
-			pickGridLoc(forWorld, parentX, parentY, targetX, targetY);
-		}
+    }    
+
+    //TODO: check math on all valid_neighbors inserts
+	// pick a location form world that is not parent_x, parent_y...
+	// place location in target_x, target_y
+	// if for_world, select a world location, if !for_world, select an MC location
+	void pickMulticellLocation(int parent_x, int parent_y, int mc_x, int mc_y,
+            int& target_x, int& target_y, bool only_empty) {
+        std::vector<size_t> valid_neighbors; // Vector of indices to valid neighbors
+        valid_neighbors.resize(multiCellX * multiCellY, 0);
+        size_t num_valid_neighbors = 0; // The actual number of valid neighbors found
+        size_t parent_idx = parent_y * multiCellY + parent_x; 
+        size_t cur_idx = 0;
+        if(!spatialMultiCell){ // Well-mixed, just check if each cell is empty
+            for(size_t cell_idx = 0; cell_idx < multiCellX * multiCellY; ++cell_idx){
+		        if((world(mc_x, mc_y).cells.getRaw(cell_idx).empty || !only_empty) &&
+                    cell_idx != parent_idx){
+                    valid_neighbors[num_valid_neighbors] = cell_idx;
+                    ++num_valid_neighbors;
+                }
+            }
+        }
+        else{
+            if(spatialMultiCellModel == "square"){
+                for(int offset_y = -1 * spatialMultiCellDist; offset_y <= spatialMultiCellDist; 
+                        offset_y++){
+                    for(int offset_x = -1 * spatialMultiCellDist; offset_x <= spatialMultiCellDist; 
+                            offset_x++){
+                        // Skip the current cell
+                        if( offset_x == 0 && offset_y == 0) continue;
+                        // If we ran of the side of the grid, react appropriately
+                        if( parent_x + offset_x < 0 ||           
+                            parent_x + offset_x >= multiCellX ||
+                            parent_y + offset_y < 0 ||
+                            parent_y + offset_y >= multiCellY){
+                            if (spatialMultiCellEdgeRule == "fail") // Fail => cell is not valid
+                                continue;
+                            else if (spatialMultiCellEdgeRule == "wrap") { // Wrap => recalc. index
+                                // x  + (y * mcX) (we just wrap x and y)
+                                cur_idx = 
+                                    ((parent_x + offset_x + multiCellX) % multiCellX) + 
+                                    (((parent_y + offset_y + multiCellY) % multiCellY) * multiCellX);
+                            }
+                        }
+                        else
+                            cur_idx = parent_idx + offset_x + (offset_y * multiCellX);
+                        if(!only_empty || world(mc_x, mc_y).cells.getRaw(cur_idx).empty){
+                            valid_neighbors[num_valid_neighbors] = cur_idx;
+                            ++num_valid_neighbors;
+                        }
+                    }
+                }
+            }
+            else if(spatialMultiCellModel == "cardinal"){
+                size_t cell_idx = 0;
+                for(int offset = 1; offset <= spatialMultiCellDist; offset++){
+                    // Skip the current cell
+                    if(offset == 0) continue;
+                    for(size_t dir = 0; dir < 4; ++dir){
+                        if(dir == 0){ // North
+                            if(parent_y - offset >= 0){
+                                cur_idx = parent_x + ((parent_y - offset) * multiCellX);
+                            }
+                            else if(spatialMultiCellEdgeRule == "wrap") { // Wrap => recalc. index
+                                cur_idx = parent_x +
+                                    (((parent_y - offset + multiCellY) % multiCellY) * multiCellX);
+                            }   
+                            else continue; // Edge rule = fail => skip to next direction
+                        }
+                        else if(dir == 1){ // South
+                            if(parent_y + offset < multiCellY){
+                                cur_idx = parent_x + ((parent_y + offset) * multiCellX);
+                            }
+                            else if (spatialMultiCellEdgeRule == "wrap") { // Wrap => recalc. index
+                                cur_idx = parent_x + 
+                                    (((parent_y + offset + multiCellY) % multiCellY) * multiCellX);
+                            }
+                            else continue; // Edge rule = fail => skip to next direction
+                        }
+                        else if(dir == 2){ // East
+                            if(parent_x + offset < multiCellX){
+                                cur_idx = parent_x + offset + (parent_y * multiCellX);
+                            }
+                            else if (spatialMultiCellEdgeRule == "wrap") { // Wrap => recalc. index
+                                cur_idx = ((parent_x + offset + multiCellX) % multiCellX) +
+                                   parent_y * multiCellX;
+                            }
+                            else continue; // Edge rule = fail => skip to next direction
+                        }
+                        else if(dir == 3){ // East
+                            if(parent_x - offset >= 0){
+                                cur_idx = parent_x - offset + (parent_y * multiCellX);
+                            }
+                            else if (spatialMultiCellEdgeRule == "wrap") { // Wrap => recalc. index
+                                cur_idx = ((parent_x - offset + multiCellX) % multiCellX) +
+                                    parent_y * multiCellX;
+                            }
+                            else continue; // Edge rule = fail => skip to next direction
+                        }
+                        if(!only_empty || world(mc_x, mc_y).cells.getRaw(cur_idx).empty){
+                            valid_neighbors[num_valid_neighbors] = cur_idx;
+                            ++num_valid_neighbors;
+                        }
+                    }
+                }
+            }
+        }
+        // At this point, all valid neighbors should be in the valid_neighbors vector
+        if(num_valid_neighbors == 0){
+            target_x = -1;
+            target_y = -1;
+            //std::cout << "Returning same position!" << std::endl;
+            return;
+        }
+        // Pick randomly (USE CALCULATED SIZE, NOT VEC SIZE)
+        size_t target_cell_idx = valid_neighbors[Random::getIndex(num_valid_neighbors)]; 
+        target_x = target_cell_idx % multiCellX;
+        target_y = target_cell_idx / multiCellX; // Int division should give us the y component
 	}
 
 	void initGenome(std::vector<bool>& genome) {
@@ -415,23 +503,33 @@ public:
 			genome[Random::getIndex(alignmentGenomeSize)] = Random::getIndex(2);
 		}
 	}
+
+    //TODO: verify overwriteSelfOnFail works
 	
 	// make a new cell in an MC given a world location, the parent location within the MC. groups are needed to add germ and first cell to population
 	// note that this function is not used when the first cell is added to an MC since it's parent is the germ and has no MC location.
 	void birthCell(std::map<std::string, std::shared_ptr<Group>>& groups, int parentWorldX, int parentWorldY, int parentCellX, int parentCellY) {		
-
+        //std::cout << "Birth from: " << parentCellX << ", " << parentCellY << std::endl;
 		// parent spends resources, even if they did not produce an offspring
 		world(parentWorldX, parentWorldY).cells(parentCellX, parentCellY).resource = 0;
 
-		// pick a location for offspring
-		int offspringCellX, offspringCellY;
-		pickGridLoc(false, parentCellX, parentCellY, offspringCellX, offspringCellY);
 
+
+        bool is_parent_evil = world(parentWorldX, parentWorldY).cells(parentCellX, parentCellY).evil;
+		
+        // pick a location for offspring
+		int offspringCellX, offspringCellY;
+		pickMulticellLocation(parentCellX, parentCellY, parentWorldX, parentWorldY, 
+                offspringCellX, offspringCellY, (!is_parent_evil && restraint_type == 1));
+        if(offspringCellX == -1 || offspringCellY == -1){
+            offspringCellX = parentCellX;
+            offspringCellY = parentCellY;
+        }
 		// record if target cell location is currently empty
 		bool targetEmpty = world(parentWorldX, parentWorldY).cells(offspringCellX, offspringCellY).empty;
 
 		// if target location is empty or parent is evil or overwriteSelfOnFail an offspring will be made
-		if (targetEmpty || world(parentWorldX, parentWorldY).cells(parentCellX, parentCellY).evil || overwriteSelfOnFail) {
+		if (targetEmpty || is_parent_evil || overwriteSelfOnFail) {
 			
 			// get a link to the parent org
 			auto parentOrg = world(parentWorldX, parentWorldY).cells(parentCellX, parentCellY).org;
