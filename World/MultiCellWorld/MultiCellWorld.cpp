@@ -46,8 +46,8 @@ std::shared_ptr < ParameterLink<double>> MultiCellWorld::initEvilPercentPL =
 Parameters::register_parameter("WORLD_MULTICELL-initEvilPercent", -1.0,
 	"use this to initalize first population genomes, if -1, seed genomes randomly, 0.0 = not evil, 1.0 = very evil");
 
-std::shared_ptr < ParameterLink<int>> MultiCellWorld::restraint_type_PL =
-Parameters::register_parameter("WORLD_MULTICELL-restraint_type", 0,
+std::shared_ptr < ParameterLink<int>> MultiCellWorld::restraintType_PL =
+Parameters::register_parameter("WORLD_MULTICELL-restraintType", 0,
 	"Which type of restraint to use (0 - fail to overwrite cells, 1 - fail to overwrite, only choose"
         " from empty neighbors)");
 
@@ -214,7 +214,7 @@ MultiCellWorld::MultiCellWorld(std::shared_ptr<ParametersTable> PT_)
 	recordWorldStateStep = recordWorldStateStepPL->get(PT);
 
 	initEvilPercent = initEvilPercentPL->get(PT);
-    restraint_type = restraint_type_PL->get(PT);
+    restraint_type = restraintType_PL->get(PT);
 
 
 

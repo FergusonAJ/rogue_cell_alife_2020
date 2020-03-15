@@ -52,7 +52,7 @@ public:
 	int recordImageStep;
 	static std::shared_ptr < ParameterLink<int>> recordWorldStateStepPL;
 	int recordWorldStateStep;
-	static std::shared_ptr < ParameterLink<int>> restraint_type_PL;
+	static std::shared_ptr < ParameterLink<int>> restraintType_PL;
 	int restraint_type;
 
 
