@@ -92,7 +92,7 @@ public:
 	bool suppressMultiCellOffspring;
 
 	std::vector<std::pair<int,int>> worldOrder, multiCellOrder;
-
+    int next_multicell_id = 0;
 	// Vector2d wraps a vector<T> and provides (x,y) style access
 	// no error checking is provided for out of range errors
 	// internally this class uses R(ow) and C(olumn) (i.e. how the data is stored in the data vector)
@@ -218,6 +218,7 @@ public:
 
 	class MultiCell {
 	public:
+        int id = -1;
 		std::shared_ptr<Organism> germ;
 		Vector2d<Cell> cells;
 		bool empty = true;
@@ -231,13 +232,18 @@ public:
 		int evilCellBirthCounts = 0; // includes murder
 		int murderCellBirthCounts = 0;
 		double cellAlignmentSum = 0.0;
-
+        size_t num_good_cells = 0;
+        size_t num_evil_cells = 0;
 		std::vector<bool> genome;
 	};
 
 	int MCReportID = 0;
-	std::string MCReportHeader = "reportID,timeOfBirth,ageAtDeath,goodCellBirths,evilCellBirths,murderCellBirths,cellAlignmentAve,germAlignment,reproDeath,overwriteDeath";
+	std::string MCReportHeader = "reportID,mcID,timeOfBirth,ageAtDeath,goodCellBirths,evilCellBirths,murderCellBirths,cellAlignmentAve,germAlignment,reproDeath,overwriteDeath,numGoodCells,numEvilCells";
 	std::string MCReport = "";
+   
+    int mc_count_id = 0;
+    std::string mc_count_header = "entry_id,mc_id,update,num_good_cells,num_evil_cells";
+    std::string mc_count_body = ""; 
 
 	// call when an MC is being destroyed to record some data about that MC. reproDeath = 1 if this death is from a MC reproducing over itself and 0 if overwritten by some other MC
 	void addMCFate(MultiCell& MC,int reproDeath) {
@@ -245,6 +251,7 @@ public:
 			MCReport += "\n";
 		}
 		MCReport += std::to_string(MCReportID++) + ",";
+		MCReport += std::to_string(MC.id) + ",";
 		MCReport += std::to_string(MC.germ->timeOfBirth) + ",";
 		MCReport += std::to_string(Global::update-MC.germ->timeOfBirth) + ",";
 		MCReport += std::to_string(MC.goodCellBirthCounts) + ",";
@@ -253,7 +260,9 @@ public:
 		MCReport += std::to_string(MC.cellAlignmentSum/static_cast<double>(MC.goodCellBirthCounts + MC.evilCellBirthCounts)) + ",";
 		MCReport += std::to_string(MC.alignment) + ",";
 		MCReport += std::to_string(reproDeath) + ",";
-		MCReport += std::to_string(1 - reproDeath);
+		MCReport += std::to_string(1 - reproDeath) + ",";
+        MCReport += std::to_string(MC.num_good_cells) + ",";
+        MCReport += std::to_string(MC.num_evil_cells);
 	}
 
 	// write all MC reports to file
@@ -261,6 +270,25 @@ public:
 		if (MCReport.size() > 0) { // if the string is not empty
 			FileManager::writeToFile("MC_Fates.csv", MCReport, MCReportHeader);
 			MCReport = ""; // clear out the string
+		}
+	}
+
+	// Adds a new line to the file of MC good/evil cell counts
+	void addMCCounts(MultiCell& MC) {
+		if (mc_count_body.size() != 0) { // Break previous line, if it exists
+			mc_count_body += "\n";
+		}
+		mc_count_body += std::to_string(mc_count_id++) + ",";
+		mc_count_body += std::to_string(MC.id) + ",";
+		mc_count_body += std::to_string(Global::update) + ",";
+        mc_count_body += std::to_string(MC.num_good_cells) + ",";
+        mc_count_body += std::to_string(MC.num_evil_cells);
+	}
+	// Write all MC cell count observations into a file
+	void saveMCCountFile() {
+		if (mc_count_body.size() > 0) { // if the string is not empty
+			FileManager::writeToFile("MC_Counts.csv", mc_count_body, mc_count_header);
+			mc_count_body = ""; // clear out the string
 		}
 	}
 
@@ -536,6 +564,11 @@ public:
 
 			// if target is not empty and the parent is evil
 			if (!targetEmpty && world(parentWorldX, parentWorldY).cells(parentCellX, parentCellY).evil) {
+                // If good or evil, track this
+                if(world(parentWorldX, parentWorldY).cells(offspringCellX, offspringCellY).evil)
+                    --world(parentWorldX, parentWorldY).num_evil_cells;
+                else if(!world(parentWorldX, parentWorldY).cells(offspringCellX,offspringCellY).evil)
+                    --world(parentWorldX, parentWorldY).num_good_cells;
 				// kill what's in the target cell now...
 				killList.insert(world(parentWorldX, parentWorldY).cells(offspringCellX, offspringCellY).org);
 			}
@@ -544,6 +577,10 @@ public:
 				// parent will oversrite self set target location to parent location
 				offspringCellX = parentCellX;
 				offspringCellY = parentCellY;
+                if(world(parentWorldX, parentWorldY).cells(offspringCellX, offspringCellY).evil)
+                    --world(parentWorldX, parentWorldY).num_evil_cells;
+                else if(!world(parentWorldX, parentWorldY).cells(offspringCellX,offspringCellY).evil)
+                    --world(parentWorldX, parentWorldY).num_good_cells;
 				killList.insert(parentOrg); // kill what's here now... i.e. the parent
 			}
 
@@ -571,6 +608,10 @@ public:
 			world(parentWorldX, parentWorldY).evilCellBirthCounts += world(parentWorldX, parentWorldY).cells(offspringCellX, offspringCellY).evil;
 			world(parentWorldX, parentWorldY).murderCellBirthCounts += world(parentWorldX, parentWorldY).cells(offspringCellX, offspringCellY).murder;
 			world(parentWorldX, parentWorldY).cellAlignmentSum += world(parentWorldX, parentWorldY).cells(offspringCellX, offspringCellY).alignment;
+            if(world(parentWorldX, parentWorldY).cells(offspringCellX, offspringCellY).evil)
+                ++world(parentWorldX, parentWorldY).num_evil_cells;
+            else if(!world(parentWorldX, parentWorldY).cells(offspringCellX,offspringCellY).evil)
+                ++world(parentWorldX, parentWorldY).num_good_cells;
 		}
 	}
 
@@ -595,7 +636,9 @@ public:
 		world(newWorldX, newWorldY).empty = false;
 		world(newWorldX, newWorldY).full = false;
 		world(newWorldX, newWorldY).canProduce = false;
-
+        world(newWorldX, newWorldY).num_good_cells = 0;
+        world(newWorldX, newWorldY).num_evil_cells = 0;
+        world(newWorldX, newWorldY).id = ++next_multicell_id;
 		// pick location for first cell
 		int offspringCellX = Random::getIndex(multiCellX);
 		int offspringCellY = Random::getIndex(multiCellY);
@@ -620,6 +663,9 @@ public:
 		world(newWorldX, newWorldY).evilCellBirthCounts = world(newWorldX, newWorldY).cells(offspringCellX, offspringCellY).evil;
 		world(newWorldX, newWorldY).murderCellBirthCounts = world(newWorldX, newWorldY).cells(offspringCellX, offspringCellY).murder;
 		world(newWorldX, newWorldY).cellAlignmentSum = world(newWorldX, newWorldY).cells(offspringCellX, offspringCellY).alignment;
+
+        world(newWorldX, newWorldY).num_good_cells = world(newWorldX, newWorldY).goodCellBirthCounts;
+        world(newWorldX, newWorldY).num_evil_cells = world(newWorldX, newWorldY).evilCellBirthCounts;
 	}
 
 	void displayMultiCell(MultiCell& MC) {

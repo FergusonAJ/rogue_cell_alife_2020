@@ -408,9 +408,9 @@ void MultiCellWorld::evaluate(std::map<std::string, std::shared_ptr<Group>>& gro
 			// assume this MC is full
 			world(wX, wY).full = true;
 			// now look at each cell, if any are empty, the MC is not full
-			for (int y = 0; y < world(wX, wY).cells.y(); y++) {
-				for (int x = 0; x < world(wX, wY).cells.x(); x++) {
-					if (world(wX, wY).cells(x, y).empty) {
+			for(int y = 0; y < world(wX, wY).cells.y(); y++) {
+				for(int x = 0; x < world(wX, wY).cells.x(); x++) {
+					if(world(wX, wY).cells(x, y).empty) {
 						world(wX, wY).full = false; // if any cell is empty, this MC is not full
 					}
 				}
@@ -429,10 +429,11 @@ void MultiCellWorld::evaluate(std::map<std::string, std::shared_ptr<Group>>& gro
 			int wY = worldLocation.second;
 			// if cell canProduce, add mutiCell
 			if (world(wX, wY).canProduce) {
-				if (!world(wX, wY).empty && world(wX, wY).germ->timeOfBirth < Global::update) { // do not look at this MC if it is new
+				if (!world(wX, wY).empty && world(wX, wY).germ->timeOfBirth < Global::update) { 
+                    // do not look at this MC if it is new
 					
-																								// this MC will reproduce this will destroy this MC (will be overwritten by self) and another MC
-					// save some info about this MC
+				    // this MC will reproduce this will destroy this MC (will be overwritten by self) and another MC
+				    // save some info about this MC
 					addMCFate(world(wX, wY), 1); // 1 = death by reproducing over self
 
 					// put all cells in this MC in kill list
@@ -451,7 +452,7 @@ void MultiCellWorld::evaluate(std::map<std::string, std::shared_ptr<Group>>& gro
 						// use this cells genome
 						parentGenome = world(wX, wY).cells(randX, randY).genome;
 					}
-
+    
 					// kill all cells in this MC
 					for (int y = 0; y < multiCellX; y++) {
 						for (int x = 0; x < multiCellY; x++) {
@@ -463,7 +464,6 @@ void MultiCellWorld::evaluate(std::map<std::string, std::shared_ptr<Group>>& gro
 
 					// make a new MC over the current MC
 					std::shared_ptr<Organism> germ_org = world(wX, wY).germ->makeMutatedOffspringFrom(world(wX, wY).germ);
-					
 					if (useWorldGenome) {
 						birthMultiCell(groups, germ_org, worldGenome, wX, wY);
 					}
@@ -495,10 +495,10 @@ void MultiCellWorld::evaluate(std::map<std::string, std::shared_ptr<Group>>& gro
 						}
 						germ_org = world(wX, wY).germ->makeMutatedOffspringFrom(world(wX, wY).germ);
 						if (useWorldGenome) {
-							birthMultiCell(groups, germ_org, worldGenome, newX, newX);
+							birthMultiCell(groups, germ_org, worldGenome, newX, newY);
 						}
 						else {
-							birthMultiCell(groups, germ_org, parentGenome, newX, newX);
+							birthMultiCell(groups, germ_org, parentGenome, newX, newY);
 						}
 					}
 				}
@@ -531,6 +531,14 @@ void MultiCellWorld::evaluate(std::map<std::string, std::shared_ptr<Group>>& gro
 		// save some world details to record csv file
 		if (recordWorldStateStep > 0 && Global::update % recordWorldStateStep == 0) {
 			saveMCFateFile(); // save fates files
+            // Record the good/evil cell counts for each multicell
+			for(int y = 0; y < worldY; ++y){
+			    for(int x = 0; x < worldX; ++x){
+                    if(!world(x,y).empty)
+                        addMCCounts(world(x,y));
+                }
+            }
+            saveMCCountFile();
 
 			double state_count_MC = 0; // this will also be count_all_germ
 			double state_count_all_evil_germs = 0;
