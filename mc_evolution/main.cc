@@ -39,6 +39,8 @@ private:
     bool write_output_file;
     std::string output_filename;
     size_t output_interval;
+    size_t min_num_ones;
+    size_t max_num_ones;
     // Population
     emp::vector<Multicell> multicell_vec;
     // Other evolution vars
@@ -77,18 +79,23 @@ private:
         write_output_file =     (bool)          config.WRITE_OUTPUT_FILE();
         output_filename =       (std::string)   config.OUTPUT_FILENAME();
         output_interval =       (size_t)        config.OUTPUT_INTERVAL();
+        min_num_ones =          (size_t)        config.MIN_NUM_ONES();
+        max_num_ones =          (size_t)        config.MAX_NUM_ONES();
     }
     void RandomizeGenome(Multicell& multicell){
         multicell.genome = random.GetUInt(genome_length + 1);
     }
     void SetMulticellTimes(Multicell& multicell){
+        size_t alignment_proxy = multicell.genome;
+        if(multicell.genome < min_num_ones)
+            alignment_proxy = min_num_ones;
+        else if(multicell.genome > max_num_ones)
+            alignment_proxy = max_num_ones;
         multicell.update_birth = update_cur;
         multicell.update_repro = update_cur 
-            + profiling_data_vec[multicell.genome][
-                random.GetUInt(profiling_data_vec[multicell.genome].size())
+            + profiling_data_vec[alignment_proxy][
+                random.GetUInt(profiling_data_vec[alignment_proxy].size())
             ]; 
-        //    (size_t)std::round(random.GetRandNormal(
-        //        profiling_mean_vec[multicell.genome], profiling_sd_vec[multicell.genome]));
     }
     void InitializePopulation(){
         multicell_vec.resize(num_multicells);
@@ -115,6 +122,10 @@ private:
         size_t num_lines = 0;
         for(size_t i = 0; i <= genome_length; i++){
             emp::vector<size_t>& vec = profiling_data_vec[i];
+            if(i < min_num_ones || i > max_num_ones){
+                std::cout << i << " outside range!" << std::endl;
+                continue;
+            }
             double evil_pct = ((double)i) / genome_length;
             std::cout << "Loading data for " << evil_pct << std::endl;
             ss.str("");
