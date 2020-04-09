@@ -83,7 +83,7 @@ private:
         max_num_ones =          (size_t)        config.MAX_NUM_ONES();
     }
     void RandomizeGenome(Multicell& multicell){
-        multicell.genome = random.GetUInt(genome_length + 1);
+        multicell.genome = genome_length / 2;//random.GetUInt(genome_length + 1);
     }
     void SetMulticellTimes(Multicell& multicell){
         size_t alignment_proxy = multicell.genome;
