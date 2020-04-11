@@ -55,7 +55,7 @@ private:
     size_t num_attempted_mutations = 0;
     size_t num_actual_mutations = 0;
     std::ofstream fp_out;
-    size_t next_output_update;
+    size_t last_output_update;
     // Misc.
     emp::Random random;
          
@@ -124,8 +124,8 @@ private:
         size_t num_lines = 0;
         for(size_t i = 0; i <= genome_length; i++){
             emp::vector<size_t>& vec = profiling_data_vec[i];
+            // Only look for alignments that are between the specified parameters
             if(i < min_num_ones || i > max_num_ones){
-                std::cout << i << " outside range!" << std::endl;
                 continue;
             }
             double evil_pct = ((double)i) / genome_length;
@@ -209,10 +209,7 @@ private:
         fp_out << "update,mean_germ_alignment\n";
     }
     void AddOutputLine(){
-        if(update_cur >= next_output_update){
-            fp_out << update_cur << "," << GetAlignmentMean() << "\n"; 
-            next_output_update = ((update_cur / output_interval) + 1) * output_interval;
-        }
+        fp_out << update_cur << "," << GetAlignmentMean() << "\n"; 
     }
 public:
     Experiment(int argc, char* argv[]){
@@ -231,17 +228,18 @@ public:
     }
     void Run(){
         update_cur = 0;
-        next_output_update = 0;
+        last_output_update = 0;
         LoadProfilingData();
         InitializePopulation();
-        if(write_output_file){
+        if(write_output_file){ // Create output file and save off update 0
             OpenOutputFile();
+            AddOutputLine();
         }
         replicating_idx_vec.resize(num_multicells, 0);
         num_replicating = 0;
         size_t next_repro_update;
         Multicell& cur_mc = multicell_vec[0];
-        while(update_cur <= num_updates){
+        while(1){
             // We can fast forward to the next replication event, we just need to find it!
             next_repro_update = -1; // MAX
             for(size_t mc_idx = 0; mc_idx < num_multicells; ++mc_idx){
@@ -256,7 +254,18 @@ public:
                     replicating_idx_vec[num_replicating++] = mc_idx;
                 }
             }
+            if(write_output_file){
+                if(next_repro_update - last_output_update > output_interval){
+                    // Jump forward as many intervals as we can (leverage integer division)
+                    update_cur = last_output_update + output_interval * 
+                        ((next_repro_update - last_output_update) / output_interval);
+                    AddOutputLine();
+                    last_output_update = update_cur;
+                }
+            }
             update_cur = next_repro_update;
+            if(update_cur > num_updates)
+                break;
             // Shuffle the vector to make sure we treat multicells fairly
             //Modified emp::shuffle to only shuffle first n elements
             if(num_replicating > 1){
@@ -275,7 +284,6 @@ public:
                 std::cout << "Finshed update " << update_cur 
                     << " mean alignment: " << GetAlignmentMean() << std::endl; 
             }
-            AddOutputLine();
         }
         std::cout << "Final update: " << update_cur 
             << " mean alignment: " << GetAlignmentMean() << std::endl;
