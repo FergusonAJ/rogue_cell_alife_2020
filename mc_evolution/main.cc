@@ -43,6 +43,8 @@ private:
     size_t max_num_ones;
     // Population
     emp::vector<Multicell> multicell_vec;
+    emp::vector<size_t> replicating_idx_vec;
+    size_t num_replicating;
     // Other evolution vars
     size_t update_cur;
     emp::vector<emp::vector<size_t>> profiling_data_vec;
@@ -235,25 +237,43 @@ public:
         if(write_output_file){
             OpenOutputFile();
         }
+        replicating_idx_vec.resize(num_multicells, 0);
+        num_replicating = 0;
         size_t next_repro_update;
+        Multicell& cur_mc = multicell_vec[0];
         while(update_cur <= num_updates){
             // We can fast forward to the next replication event, we just need to find it!
             next_repro_update = -1; // MAX
             for(size_t mc_idx = 0; mc_idx < num_multicells; ++mc_idx){
-                if(multicell_vec[mc_idx].update_repro < next_repro_update)
-                    next_repro_update = multicell_vec[mc_idx].update_repro;
+                cur_mc = multicell_vec[mc_idx];
+                if(cur_mc.update_repro > next_repro_update)
+                    continue;
+                if(cur_mc.update_repro == next_repro_update)
+                    replicating_idx_vec[num_replicating++] = mc_idx;
+                else if(cur_mc.update_repro < next_repro_update){
+                    next_repro_update = cur_mc.update_repro;
+                    num_replicating = 0;
+                    replicating_idx_vec[num_replicating++] = mc_idx;
+                }
             }
             update_cur = next_repro_update;
             // Shuffle the vector to make sure we treat multicells fairly
-            emp::Shuffle(random, multicell_vec); 
-            for(size_t mc_idx = 0; mc_idx < num_multicells; ++mc_idx){
-                if(multicell_vec[mc_idx].update_repro == update_cur){
-                    ReplicateMulticell(mc_idx);
+            //Modified emp::shuffle to only shuffle first n elements
+            if(num_replicating > 1){
+                for (size_t i = 0; i < num_replicating; i++) {
+                  const size_t pos = random.GetUInt(i, num_replicating);
+                  if (pos == i) continue;
+                  std::swap(replicating_idx_vec[i], replicating_idx_vec[pos]);
+                }
+            }
+            for(size_t idx = 0; idx < num_replicating; ++idx){
+                if(multicell_vec[replicating_idx_vec[idx]].update_repro == update_cur){
+                    ReplicateMulticell(replicating_idx_vec[idx]);
                 }
             }
             if(print_every_update){
                 std::cout << "Finshed update " << update_cur 
-                    << " mean alignment: " << GetAlignmentMean() << std::endl;
+                    << " mean alignment: " << GetAlignmentMean() << std::endl; 
             }
             AddOutputLine();
         }
