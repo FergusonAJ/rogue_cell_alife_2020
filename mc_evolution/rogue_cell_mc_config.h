@@ -25,6 +25,9 @@ EMP_BUILD_CONFIG(MulticellEvolutionConfig,
     VALUE(MIN_NUM_ONES,             size_t, 40,     "If germ has fewer than this many ones, treat "
                                                         "it as if it has this many"),
     VALUE(MAX_NUM_ONES,             size_t, 60,     "If germ has more than this many ones, treat "
-                                                        "it as if it has this many")
+                                                        "it as if it has this many"),
+    VALUE(MAX_GENERATIONS,          int,    -1,     "Upper limit to the maximum number of "
+                                                        "generations, on average, before "
+                                                        "termination. -1 for no limit (use updates)")
 )
 #endif

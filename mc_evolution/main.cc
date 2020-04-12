@@ -22,6 +22,7 @@ struct Multicell{
     size_t genome;
     size_t update_birth;
     size_t update_repro;
+    size_t generation;
 };
 
 class Experiment{
@@ -41,6 +42,7 @@ private:
     size_t output_interval;
     size_t min_num_ones;
     size_t max_num_ones;
+    int max_generations;
     // Population
     emp::vector<Multicell> multicell_vec;
     emp::vector<size_t> replicating_idx_vec;
@@ -83,6 +85,7 @@ private:
         output_interval =       (size_t)        config.OUTPUT_INTERVAL();
         min_num_ones =          (size_t)        config.MIN_NUM_ONES();
         max_num_ones =          (size_t)        config.MAX_NUM_ONES();
+        max_generations =       (int)           config.MAX_GENERATIONS();
     }
     void RandomizeGenome(Multicell& multicell){
         multicell.genome = genome_length / 2;//random.GetUInt(genome_length + 1);
@@ -104,17 +107,8 @@ private:
         for(size_t mc_idx = 0; mc_idx < num_multicells; ++mc_idx){
             RandomizeGenome(multicell_vec[mc_idx]);
             SetMulticellTimes(multicell_vec[mc_idx]);
+            multicell_vec[mc_idx].generation = 0;
         }
-        //std::sort(multicell_vec.begin(), multicell_vec.end(), 
-        //        [](const Multicell& mc_a, const Multicell& mc_b){
-        //            return mc_a.update_repro < mc_b.update_repro;
-        //        });
-        //for(size_t mc_idx = 0; mc_idx < num_multicells; ++mc_idx){
-        //    std::cout 
-        //        << multicell_vec[mc_idx].genome << " "
-        //        << multicell_vec[mc_idx].update_birth << " "
-        //        << multicell_vec[mc_idx].update_repro << std::endl;
-        //}
     }
     void LoadProfilingData(){
         profiling_data_vec.resize(genome_length + 1); // +1 to account for zero ones
@@ -185,14 +179,23 @@ private:
         // Add offspring
         MutateGenome(mc_child, mc_parent);
         SetMulticellTimes(mc_child);
+        ++mc_child.generation;
         // Reset self
         MutateGenome(mc_parent, mc_parent);
         SetMulticellTimes(mc_parent);
+        ++mc_parent.generation;
     }
     double GetAlignmentMean(){
         double running_sum = 0;
         for(size_t mc_idx = 0; mc_idx < num_multicells; ++mc_idx){
             running_sum += multicell_vec[mc_idx].genome;
+        }
+        return running_sum / num_multicells;
+    }
+    double GetGenerationMean(){
+        double running_sum = 0;
+        for(size_t mc_idx = 0; mc_idx < num_multicells; ++mc_idx){
+            running_sum += multicell_vec[mc_idx].generation;
         }
         return running_sum / num_multicells;
     }
@@ -206,10 +209,10 @@ private:
             std::cerr << "Error! Could not open output file: " << output_filename << std::endl;
             exit(-1);
         }
-        fp_out << "update,mean_germ_alignment\n";
+        fp_out << "update,mean_germ_alignment,mean_generation\n";
     }
     void AddOutputLine(){
-        fp_out << update_cur << "," << GetAlignmentMean() << "\n"; 
+        fp_out << update_cur << "," << GetAlignmentMean() << "," << GetGenerationMean() << "\n"; 
     }
 public:
     Experiment(int argc, char* argv[]){
@@ -266,6 +269,10 @@ public:
             update_cur = next_repro_update;
             if(update_cur > num_updates)
                 break;
+            if(max_generations != -1){
+                if(GetGenerationMean() > max_generations)
+                    break;
+            }
             // Shuffle the vector to make sure we treat multicells fairly
             //Modified emp::shuffle to only shuffle first n elements
             if(num_replicating > 1){
@@ -286,14 +293,14 @@ public:
             }
         }
         std::cout << "Final update: " << update_cur 
-            << " mean alignment: " << GetAlignmentMean() << std::endl;
+            << " mean alignment: " << GetAlignmentMean()
+            << " mean generations: " << GetGenerationMean() << std::endl;
         if(write_output_file){
+            if(update_cur != last_output_update)
+                AddOutputLine();
             std::cout << "Ouput file saved to: " << output_filename << std::endl;
             fp_out.close();
         }
-        //std::cout << "Realized *multicell* mutation rate: " 
-        //    << ((double)num_actual_mutations) / num_attempted_mutations
-        //    << std::endl;
     }
 };
 
